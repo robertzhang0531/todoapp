@@ -20,7 +20,7 @@
 * When your server is up and running, try:
 
   ```
-  npm run server
+  npm start
   ```
 
 * The APP will start on PORT 3000
