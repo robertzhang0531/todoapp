@@ -1,3 +1,5 @@
+const dotenv = require('dotenv');
+
 let express = require('express')
 let {MongoClient, ObjectId} = require('mongodb')
 let sanitizeHTML = require('sanitize-html')
@@ -13,7 +15,7 @@ if (port == null || port == "") {
 app.use(express.static('public'))
 
 async function go() {
-    let client = new MongoClient('mongodb+srv://todoAppUser:20010531Yy@cluster0.zgllz.mongodb.net/TodoApp?retryWrites=true&w=majority')
+    let client = new MongoClient(process.env.CONNECTIONSTRING)
     await client.connect()
     db = client.db()
     app.listen(port)
