@@ -1,4 +1,4 @@
-const dotenv = require('dotenv');
+const dotenv = require('dotenv').config();
 
 let express = require('express')
 let {MongoClient, ObjectId} = require('mongodb')
