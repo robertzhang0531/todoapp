@@ -3,6 +3,7 @@
 ## Intro
 
 * This is a to-do app that allows you to make your own to-do list.
+(*UPDATE 2023/11/16: a new AI-powered feature is available now. It helps you break down your big idea into small, executable steps. Make sure to try it out!)
 
 ## To Run this app in your Web Browser
 
