@@ -1,6 +1,8 @@
 let express = require("express")
 let { MongoClient, ObjectId } = require("mongodb")
 let sanitizeHTML = require("sanitize-html")
+require('dotenv').config();
+const axios = require('axios');
 
 let app = express()
 let db
@@ -13,7 +15,7 @@ if (port == null || port == "") {
 app.use(express.static("public"))
 
 async function go() {
-  let client = new MongoClient(CONNECTIONSTRING='mongodb+srv://todoAppUser:20010531Yy@cluster0.zgllz.mongodb.net/TodoApp?retryWrites=true&w=majority')
+  let client = new MongoClient(process.env.CONNECTIONSTRING)
   await client.connect()
   db = client.db()
   app.listen(port)
@@ -36,44 +38,138 @@ function passwordProtected(req, res, next) {
 
 app.use(passwordProtected)
 
-app.get("/", async function (req, res) {
-  const items = await db.collection("items").find().toArray()
-  res.send(`<!DOCTYPE html>
-  <html>
-  <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Simple To-Do App</title>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  </head>
-  <body>
-  <div class="container">
-  <h1 class="display-4 text-center py-1">To-Do App!</h1>
-  
-  <div class="jumbotron p-3 shadow-sm">
-  <form id="create-form" action="/create-item" method="POST">
-  <div class="d-flex align-items-center">
-  <input id="create-field" name="item" autofocus autocomplete="off" class="form-control mr-3" type="text" style="flex: 1;">
-  <button class="btn btn-primary">Add New Item</button>
-  </div>
-  </form>
-  </div>
-  
-  <ul id="item-list" class="list-group pb-5">
-  </ul>
-  
-  </div>
-  
-  <script>
-  let items = ${JSON.stringify(items)}
-  </script>
+// app.get("/", async function (req, res) {
+//   const items = await db.collection("items").find().toArray()
+//   res.send(`<!DOCTYPE html>
+//   <html>
+//   <head>
+//   <meta charset="UTF-8">
+//   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//   <title>Simple To-Do App</title>
+//   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+//   <link rel="icon" type="image/x-icon" href="/favicon.ico">
 
-  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-  <script src="/browser.js"></script>
-  </body>
-  </html>`)
-})
+//   <!-- Include custom CSS for sub-tasks -->
+//   <style>
+//     .sub-task {
+//       margin-left: 20px;
+//       font-size: 0.9em;
+//     }
+//   </style>
+
+//   </head>
+//   <body>
+//   <div class="container">
+//   <h1 class="display-4 text-center py-1">To-Do App!</h1>
+  
+//   <div class="jumbotron p-3 shadow-sm">
+
+//     <!-- AI-powered task breakdown button -->
+//     <button id="ai-breakdown" class="btn btn-warning mb-2">Break Down Task with AI</button>
+
+//     <!-- Loading message -->
+//     <span id="loading-message" style="display: none;">AI is working on breaking down the tasks...</span>
+
+//     <form id="create-form" action="/create-item" method="POST">
+//       <div class="d-flex align-items-center">
+//         <input id="create-field" name="item" autofocus autocomplete="off" class="form-control mr-3" type="text" style="flex: 1;">
+//         <button class="btn btn-primary">Add New Item</button>
+//       </div>
+//     </form>
+//   </div>
+
+
+  
+//   <ul id="item-list" class="list-group pb-5">
+//   </ul>
+  
+//   </div>
+  
+//   <script>
+//   let items = ${JSON.stringify(items)}
+//   </script>
+
+//   <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+//   <script src="/browser.js"></script>
+//   </body>
+//   </html>`)
+// })
+
+app.get("/", async function (req, res) {
+    const items = await db.collection("items").find().toArray();
+
+    // Function to build nested tasks
+    function buildTasksHtml(tasks, parentId = null) {
+        let tasksHtml = '';
+        tasks.filter(task => task.parentId === parentId).forEach(task => {
+            tasksHtml += `<li class="list-group-item">${task.name}`;
+            // Recursively build sub-tasks
+            const subTasksHtml = buildTasksHtml(tasks, task.id);
+            if (subTasksHtml) {
+                tasksHtml += `<ul class="sub-task">${subTasksHtml}</ul>`;
+            }
+            tasksHtml += `</li>`;
+        });
+        return tasksHtml;
+    }
+
+    // Build HTML for tasks
+    const tasksHtml = buildTasksHtml(items);
+
+    res.send(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simple To-Do App</title>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+
+<!-- Include custom CSS for sub-tasks -->
+<style>
+  .sub-task {
+    margin-left: 10px;
+    font-size: 0.9em;
+  }
+</style>
+
+</head>
+<body>
+<div class="container">
+<h1 class="display-4 text-center py-1">To-Do App!</h1>
+
+<div class="jumbotron p-3 shadow-sm">
+
+  <!-- AI-powered task breakdown button -->
+  <button id="ai-breakdown" class="btn btn-warning mb-2">Break Down Task with AI</button>
+
+  <!-- Loading message -->
+  <span id="loading-message" style="display: none;">AI is working on breaking down the tasks...</span>
+
+  <form id="create-form" action="/create-item" method="POST">
+    <div class="d-flex align-items-center">
+      <input id="create-field" name="item" autofocus autocomplete="off" class="form-control mr-3" type="text" style="flex: 1;">
+      <button class="btn btn-primary">Add New Item</button>
+    </div>
+  </form>
+</div>
+
+<ul id="item-list" class="list-group pb-5">
+  ${tasksHtml}
+</ul>
+
+</div>
+
+<script>
+let items = ${JSON.stringify(items)}
+</script>
+
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="/browser.js"></script>
+</body>
+</html>`);
+});
+
 
 app.post("/create-item", async function (req, res) {
   let safeText = sanitizeHTML(req.body.text, { allowedTags: [], allowedAttributes: {} })
@@ -82,12 +178,139 @@ app.post("/create-item", async function (req, res) {
 })
 
 app.post("/update-item", async function (req, res) {
+  console.log("Updating ID:", req.body.id); // Log the ID
   let safeText = sanitizeHTML(req.body.text, { allowedTags: [], allowedAttributes: {} })
   await db.collection("items").findOneAndUpdate({ _id: new ObjectId(req.body.id) }, { $set: { text: safeText } })
   res.send("Success")
 })
 
+// app.post("/delete-item", async function (req, res) {
+//   await db.collection("items").deleteOne({ _id: new ObjectId(req.body.id) })
+//   res.send("Success")
+// })
+
+// Delete task or sub-task
 app.post("/delete-item", async function (req, res) {
-  await db.collection("items").deleteOne({ _id: new ObjectId(req.body.id) })
-  res.send("Success")
-})
+  try {
+    const itemId = new ObjectId(req.body.id);
+
+    // First, try to delete as a main task
+    const deleteResult = await db.collection("items").deleteOne({ _id: itemId });
+
+    // If nothing was deleted, try to delete as a sub-task
+    if (deleteResult.deletedCount === 0) {
+      await db.collection("items").updateOne(
+        { "subTasks._id": itemId },
+        { $pull: { subTasks: { _id: itemId } } }
+      );
+    }
+
+    res.send("Success");
+  } catch (e) {
+    console.error(e);
+    res.status(500).send("Error processing request");
+  }
+});
+
+
+
+// app.post("/ai-breakdown", async function (req, res) {
+//   let taskDescription = req.body.text;
+//   try {
+//     const response = await axios.post(
+//       'https://api.openai.com/v1/chat/completions',
+//       {
+//         model: 'gpt-4', // or 'gpt-3.5-turbo'
+//         messages: [
+//           {
+//             role: "system",
+//             content: "You are a helpful assistant. Provide extremely concise, action-only sub-tasks for any given task. Avoid explanations or descriptions."
+//           },
+//           {
+//             role: "user",
+//             content: `I need to "${taskDescription}". List only the sub-tasks in a very brief format.`
+//           }
+//         ]
+//       },
+//       {
+//         headers: {
+//           'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+//           'Content-Type': 'application/json'
+//         }
+//       }
+//     );
+
+//     // Extract the AI response
+//     const aiResponse = response.data.choices[0].message.content.trim();
+
+//     // Split the response into sub-tasks, remove sequence numbers and quotation marks
+//     const subTasks = aiResponse.split('\n').filter(task => task).map(task => 
+//       task.replace(/^[0-9]+\.?\s*'?/g, "").replace(/'$/, "")
+//     );
+
+//     // Send back the sub-tasks
+//     res.json({ subTasks: subTasks });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).send("An error occurred while trying to break down the task.");
+//   }
+// });
+
+app.post("/ai-breakdown", async function (req, res) {
+  let taskDescription = req.body.text;
+  try {
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4', // or 'gpt-3.5-turbo'
+        messages: [
+          {
+            role: "system",
+            content: "You are a helpful assistant. Provide extremely concise, action-only sub-tasks for any given task. Avoid explanations or descriptions."
+          },
+          {
+            role: "user",
+            content: `I need to "${taskDescription}". List only the sub-tasks in a very brief format.`
+          }
+        ]
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    // Extract the AI response
+    const aiResponse = response.data.choices[0].message.content.trim();
+
+    // // Split the response into sub-tasks, remove sequence numbers, quotation marks, and periods
+    // const subTasks = aiResponse.split('\n').filter(task => task).map(task => 
+    //   task.replace(/^[0-9]+\.?\s*'?/g, "").replace(/[\.\s]*$/, "")
+    // );
+
+    // Process sub-tasks and assign individual _id to each subtask
+    const subTasks = aiResponse.split('\n')
+    .filter(task => task)
+    .map(task => ({
+      _id: new ObjectId(), // Assign new ObjectId
+      text: sanitizeHTML(task.replace(/^[0-9]+\.?\s*'?/g, "").replace(/[\.\s]*$/, ""), { allowedTags: [], allowedAttributes: {} })
+    }));
+
+    // Save to MongoDB
+    let safeText = sanitizeHTML(taskDescription, { allowedTags: [], allowedAttributes: {} });
+    const info = await db.collection("items").insertOne({ text: safeText, subTasks: subTasks });
+
+    // Send back the sub-tasks along with the original task
+    res.json({ _id: info.insertedId, text: safeText, subTasks: subTasks });
+    
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("An error occurred while trying to break down the task.");
+  }
+});
+
+
+
+
